@@ -10,12 +10,14 @@ android {
     }
 
     defaultConfig {
-        minSdk = 28
+        minSdk = 22
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // API 22-25: java.time / java.util.Base64 / Java 8 collection defaults.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -30,6 +32,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     api(project(":shared"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

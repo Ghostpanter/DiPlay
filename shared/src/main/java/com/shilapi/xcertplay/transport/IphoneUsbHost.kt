@@ -1,5 +1,7 @@
 package com.shilapi.xcertplay.transport
 
+import androidx.annotation.RequiresApi
+import com.shilapi.xcertplay.compat.LegacyUsbRead
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -353,10 +355,14 @@ class Iap2UsbSession internal constructor(
         }
     }
 
+    private val legacyReader by lazy { LegacyUsbRead(connection, inEndpoint) }
+    private val legacyReadBuffer by lazy { ByteArray(LegacyUsbRead.MAX_LEGACY_BULK_BYTES) }
+
     /** Returns null only when no completed USB request arrives before [timeoutMillis]. */
     fun read(timeoutMillis: Long): ByteArray? = synchronized(readLock) {
         checkOpen()
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
+        if (!LegacyUsbRead.queuedRequestsAvailable) return@synchronized readLegacy(timeoutMillis)
         val request = UsbRequest()
         var initialized = false
         try {
@@ -415,6 +421,22 @@ class Iap2UsbSession internal constructor(
         }
     }
 
+    /** API 22-25: synchronous bulk read (see [LegacyUsbRead]). */
+    private fun readLegacy(timeoutMillis: Long): ByteArray? {
+        val result = try {
+            legacyReader.read(legacyReadBuffer, timeoutMillis)
+        } catch (error: RuntimeException) {
+            throw failSession("USBMUX read failed", error)
+        }
+        checkOpen()
+        return when (result) {
+            is LegacyUsbRead.Result.Data -> legacyReadBuffer.copyOf(result.length)
+            LegacyUsbRead.Result.Timeout -> null
+            is LegacyUsbRead.Result.Failed ->
+                throw failSession("USBMUX bulk read failed repeatedly (api=${Build.VERSION.SDK_INT} code=${result.code})")
+        }
+    }
+
     override fun close() {
         val requestToCancel = synchronized(stateLock) {
             if (closed) return
@@ -434,6 +456,7 @@ class Iap2UsbSession internal constructor(
         if (closed) throw IphoneUsbException.DeviceUnavailable("USBMUX session is closed")
     }
 
+    @RequiresApi(Build.VERSION_CODES.O) // Only the queued-request read path (API 26+) gets here.
     private fun drainCancelledRead(request: UsbRequest) {
         if (!request.cancel()) {
             throw failSession("Android could not cancel timed out USBMUX read request")

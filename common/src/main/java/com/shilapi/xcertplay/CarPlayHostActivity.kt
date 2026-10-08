@@ -1,5 +1,8 @@
 package com.shilapi.xcertplay
 
+import com.shilapi.xcertplay.compat.setTrackTintCompat
+import com.shilapi.xcertplay.compat.setThumbTintCompat
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -569,7 +572,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         WheelKeyService.restoreIfNeeded(this)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        getSystemService(android.hardware.display.DisplayManager::class.java)
+        systemServiceCompat(android.hardware.display.DisplayManager::class.java)
             ?.registerDisplayListener(clusterDisplayListener, mainHandler)
         initializeSessionLog()
         lastConfiguration = Configuration(resources.configuration)
@@ -604,7 +607,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         val reusedBackgroundSession = adoptBackgroundSession()
         microphoneAvailable =
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            checkCallingOrSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         microphonePermissionResolved = microphoneAvailable
         if (reusedBackgroundSession) {
             updateDebugOverlays()
@@ -709,7 +712,7 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     private fun hasFineLocationPermission(): Boolean =
-        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+        checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
     private fun requestVpnConsent() {
@@ -727,7 +730,7 @@ class CarPlayHostActivity : ComponentActivity() {
 
     private fun requestWirelessPermissions() {
         val permissions = requiredWirelessPermissions()
-        if (permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+        if (permissions.all { checkCallingOrSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
             wirelessPermissionsReady = true
             updateHotspotStatusBlock()
             maybeStartCarPlay()
@@ -741,7 +744,7 @@ class CarPlayHostActivity : ComponentActivity() {
 
     private fun hasRequiredWirelessPermissions(): Boolean =
         requiredWirelessPermissions().all {
-            checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
+            checkCallingOrSelfPermission(it) == PackageManager.PERMISSION_GRANTED
         }
 
     private fun requiredWirelessPermissions(): List<String> = when {
@@ -1309,7 +1312,7 @@ class CarPlayHostActivity : ComponentActivity() {
         AirPlayPersistence.overlaySettingsListener = null
         com.shilapi.xcertplay.hud.BydNavigationOutputs.setTurnOverlayListener(null)
         clusterMonitor?.stop()
-        getSystemService(android.hardware.display.DisplayManager::class.java)
+        systemServiceCompat(android.hardware.display.DisplayManager::class.java)
             ?.unregisterDisplayListener(clusterDisplayListener)
         mainHandler.removeCallbacks(hideIdleCenterMap)
         homeMonitor?.stop()
@@ -2401,14 +2404,14 @@ class CarPlayHostActivity : ComponentActivity() {
                 isChecked = locationReportingEnabled
                 contentDescription = getString(R.string.report_android_location_to_the_iphone)
                 showText = false
-                thumbTintList = ColorStateList(
+                setThumbTintCompat(ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT, MENU_SECONDARY),
-                )
-                trackTintList = ColorStateList(
+                ))
+                setTrackTintCompat(ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
-                )
+                ))
                 setOnCheckedChangeListener { _, checked ->
                     onLocationReportingChanged(checked)
                 }
@@ -4075,7 +4078,11 @@ class CarPlayHostActivity : ComponentActivity() {
             }
         }
         try {
-            startForegroundService(Intent(this, DiPlaySessionService::class.java))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(Intent(this, DiPlaySessionService::class.java))
+            } else {
+                startService(Intent(this, DiPlaySessionService::class.java))
+            }
             next.start()
         } catch (error: RuntimeException) {
             appendLog("Connection could not start: ${error.javaClass.simpleName}")

@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.network
 
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -25,9 +26,9 @@ class ExistingWifiManager(
     private val onDiagnostic: (String) -> Unit = {},
     private val onNetworkChanged: () -> Unit = {},
 ) : WirelessHotspotManager {
-    private val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
+    private val connectivity = context.applicationContext.systemServiceCompat(ConnectivityManager::class.java)
         ?: throw IllegalStateException("ConnectivityManager is unavailable")
-    private val wifi = context.applicationContext.getSystemService(WifiManager::class.java)
+    private val wifi = context.applicationContext.systemServiceCompat(WifiManager::class.java)
         ?: throw IllegalStateException("WifiManager is unavailable")
     private val lock = Any()
     private val invalidated = AtomicBoolean()
@@ -115,7 +116,10 @@ class ExistingWifiManager(
                     hosts = addresses
                     interfaceIndex = iface.index
                     interfaceName = name
-                    connectivity.registerNetworkCallback(NetworkRequest.Builder().clearCapabilities()
+                    // NetworkRequest.Builder.clearCapabilities is API 30; older builders keep the
+                    // default NOT_RESTRICTED/TRUSTED/NOT_VPN set, which ordinary Wi-Fi satisfies.
+                    connectivity.registerNetworkCallback(NetworkRequest.Builder()
+                        .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) clearCapabilities() }
                         .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                         .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), callback)
                     callbackRegistered = true

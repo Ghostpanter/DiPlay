@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.shilapi.xcertplay
 
+import com.shilapi.xcertplay.compat.ApiCompat
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -51,8 +52,8 @@ object InterfaceSize {
             screenWidthDp = (base.screenWidthDp / scale).roundToInt()
             screenHeightDp = (base.screenHeightDp / scale).roundToInt()
             smallestScreenWidthDp = (base.smallestScreenWidthDp / scale).roundToInt()
-            setLocales(base.locales)
-            setLayoutDirection(base.locales[0])
+            ApiCompat.copyLocales(this, base)
+            setLayoutDirection(ApiCompat.primaryLocale(base))
         }
     }
 
@@ -63,8 +64,8 @@ object InterfaceSize {
      */
     internal fun contextOverride(scaled: Configuration): Configuration = Configuration().apply {
         densityDpi = scaled.densityDpi
-        setLocales(scaled.locales)
-        setLayoutDirection(scaled.locales[0])
+        ApiCompat.copyLocales(this, scaled)
+        setLayoutDirection(ApiCompat.primaryLocale(scaled))
     }
 
     /** Applies the density override for [base] to [activity]; call from attachBaseContext. */

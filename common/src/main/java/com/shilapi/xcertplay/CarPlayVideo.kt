@@ -12,7 +12,6 @@ import com.shilapi.xcertplay.host.R
 import com.shilapi.xcertplay.hud.BydNavigationOutputs
 import com.shilapi.xcertplay.orchestration.CarPlayController
 import com.shilapi.xcertplay.orchestration.CarPlayVideoListener
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -164,7 +163,7 @@ internal object CarPlayVideo : CarPlayVideoListener {
     /** What the iPhone answered to [resolveOnIphone]. */
     class LoadedUrl(val status: Int?, val data: ByteArray?, val location: String?)
 
-    private val pendingUrls = ConcurrentHashMap<Long, CompletableFuture<Map<*, *>>>()
+    private val pendingUrls = ConcurrentHashMap<Long, UrlAnswer>()
     private val nextUrlRequest = AtomicLong(1)
 
     /**
@@ -175,7 +174,7 @@ internal object CarPlayVideo : CarPlayVideoListener {
     fun resolveOnIphone(url: String): LoadedUrl? {
         val stream = streamId ?: return null
         val id = nextUrlRequest.getAndIncrement()
-        val answer = CompletableFuture<Map<*, *>>()
+        val answer = UrlAnswer()
         pendingUrls[id] = answer
         reply(stream, linkedMapOf(
             "type" to "unhandledURL",
@@ -251,5 +250,24 @@ internal object CarPlayVideo : CarPlayVideoListener {
         playing = false
         pendingSeekMillis = null
         activity?.finish()
+    }
+}
+
+/** One-shot answer slot (CompletableFuture is API 24). */
+private class UrlAnswer {
+    private val latch = java.util.concurrent.CountDownLatch(1)
+    @Volatile private var value: Map<*, *>? = null
+
+    fun complete(answer: Map<*, *>?) {
+        synchronized(this) {
+            if (latch.count == 0L) return
+            value = answer
+            latch.countDown()
+        }
+    }
+
+    fun get(timeout: Long, unit: TimeUnit): Map<*, *>? {
+        if (!latch.await(timeout, unit)) throw java.util.concurrent.TimeoutException()
+        return value
     }
 }

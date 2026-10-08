@@ -1,5 +1,7 @@
 package com.shilapi.xcertplay.network
 
+import com.shilapi.xcertplay.compat.ApiCompat
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
@@ -17,13 +19,14 @@ internal class ManualHotspotInterfaces(
     private val context: Context,
     private val onDiagnostic: (String) -> Unit = {},
 ) : Closeable {
-    private val connectivity = context.getSystemService(ConnectivityManager::class.java)
+    private val connectivity = context.systemServiceCompat(ConnectivityManager::class.java)
     private val publicTethering = if (Build.VERSION.SDK_INT >= 36) PublicTethering(context) else null
     private var lastLegacyDiagnostic: String? = null
 
+    @SuppressLint("NewApi") // publicTethering is only created on API 36+.
     fun sample(): HotspotNetworkSnapshot {
         val ap = publicTethering?.interfaces ?: legacyApInterfaces()
-        val before = runCatching { connectivity?.activeNetwork }
+        val before = runCatching { connectivity?.let(ApiCompat::activeNetwork) }
         val upstreams = runCatching {
             checkNotNull(connectivity)
             connectivity.allNetworks.mapNotNull { network ->
@@ -45,7 +48,7 @@ internal class ManualHotspotInterfaces(
                 }.getOrNull()
             }
         }.getOrDefault(emptyList())
-        val after = runCatching { connectivity?.activeNetwork }
+        val after = runCatching { connectivity?.let(ApiCompat::activeNetwork) }
         return HotspotNetworkSnapshot(
             interfaces, ap, upstreams, defaultName,
             consistent = before.isSuccess && after.isSuccess && before.getOrNull() == after.getOrNull(),
@@ -73,13 +76,14 @@ internal class ManualHotspotInterfaces(
         ap
     }.getOrNull()
 
+    @SuppressLint("NewApi") // publicTethering is only created on API 36+.
     override fun close() { publicTethering?.close() }
 
     @RequiresApi(36)
     private class PublicTethering(context: Context) : Closeable {
         @Volatile var interfaces: Set<String>? = null
             private set
-        private val manager = context.getSystemService(TetheringManager::class.java)
+        private val manager = context.systemServiceCompat(TetheringManager::class.java)
         private val callback = object : TetheringManager.TetheringEventCallback {
             override fun onTetheredInterfacesChanged(interfaces: Set<TetheringInterface>) {
                 this@PublicTethering.interfaces = interfaces.filter { it.type == TetheringManager.TETHERING_WIFI }

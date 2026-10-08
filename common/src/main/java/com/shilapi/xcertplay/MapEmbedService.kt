@@ -1,5 +1,7 @@
 package com.shilapi.xcertplay
 
+import android.annotation.SuppressLint
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -52,6 +54,7 @@ class MapEmbedService : Service() {
 
     override fun onBind(intent: Intent): IBinder = messenger.binder
 
+    @SuppressLint("NewApi") // embeds is only populated by attach() on API 30+.
     override fun onDestroy() {
         destroyed = true
         stopObservingSharing?.invoke()
@@ -61,6 +64,7 @@ class MapEmbedService : Service() {
         super.onDestroy()
     }
 
+    @SuppressLint("NewApi") // embeds is only populated by attach() on API 30+.
     private fun revokeSharing() {
         if (destroyed) return
         val attached = embeds.values.toList()
@@ -68,6 +72,7 @@ class MapEmbedService : Service() {
         attached.forEach { it.sharingDisabled() }
     }
 
+    @SuppressLint("NewApi") // embeds is only populated by attach() on API 30+.
     private fun handle(message: Message) {
         val client = message.replyTo ?: return
         val caller = packageManager.getNameForUid(message.sendingUid) ?: "uid ${message.sendingUid}"
@@ -93,7 +98,7 @@ class MapEmbedService : Service() {
             return
         }
         embeds.remove(client.binder)?.release()
-        val display = getSystemService(DisplayManager::class.java)?.getDisplay(data.getInt(KEY_DISPLAY_ID))
+        val display = systemServiceCompat(DisplayManager::class.java)?.getDisplay(data.getInt(KEY_DISPLAY_ID))
         if (display == null) {
             send(client, MSG_ERROR, Bundle().apply { putString(KEY_ERROR, ERROR_BAD_REQUEST) })
             return
@@ -116,6 +121,7 @@ class MapEmbedService : Service() {
         send(client, MSG_ERROR, Bundle().apply { putString(KEY_ERROR, error) })
     }
 
+    @SuppressLint("NewApi") // embeds is only populated by attach() on API 30+.
     private fun send(client: Messenger, what: Int, data: Bundle) {
         try {
             client.send(Message.obtain(null, what).apply { this.data = data })

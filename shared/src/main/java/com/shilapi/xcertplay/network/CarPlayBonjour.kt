@@ -1,5 +1,7 @@
 package com.shilapi.xcertplay.network
 
+import java.util.Collections
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -152,7 +154,7 @@ class CarPlayBonjour(
     private val services = LinkedBlockingQueue<NsdServiceInfo>()
     private val interfaceServices = LinkedBlockingQueue<Pair<CarPlayBonjourEndpoint, InetAddress>>()
     private val discoveryEvents = LinkedBlockingQueue<CarPlayBonjourEvent.Discovery>(32)
-    private val seenServices = ConcurrentHashMap.newKeySet<String>()
+    private val seenServices = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     private val lifecycleLock = Any()
     private val localAdvertisedAddress = advertisedHostAddress()
     private val advertisedAddresses = (listOfNotNull(localAdvertisedAddress) + additionalAddresses).distinct()
@@ -171,7 +173,7 @@ class CarPlayBonjour(
             "connectProbe2xx=${successfulProbeCount.get()} lastProbe=${lastProbe.get()} " +
             "mdnsFamilies=$publishedFamilies"
     private val multicastLock = (context.applicationContext ?: context)
-        .getSystemService(WifiManager::class.java)
+        .systemServiceCompat(WifiManager::class.java)!!
         .createMulticastLock("carplay-bonjour").apply { setReferenceCounted(false) }
 
     private var started = false

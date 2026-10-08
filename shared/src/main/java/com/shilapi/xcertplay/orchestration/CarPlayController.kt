@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.orchestration
 
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothA2dp
@@ -178,9 +179,9 @@ class CarPlayController(
     private val appContext = context.applicationContext
     private val diagnosticAttempt = diagnosticAttempts.incrementAndGet()
     private val diagnosticRun = AtomicInteger()
-    private val usbManager: UsbManager? = context.getSystemService(UsbManager::class.java)
+    private val usbManager: UsbManager? = context.systemServiceCompat(UsbManager::class.java)
     private val bluetoothAdapter =
-        appContext.getSystemService(BluetoothManager::class.java)?.adapter
+        appContext.systemServiceCompat(BluetoothManager::class.java)?.adapter
     private val iphoneHost by lazy {
         IphoneUsbHost(
             appContext,
@@ -2109,7 +2110,14 @@ class CarPlayController(
         val manager: WirelessHotspotManager = when (hotspotMode) {
             WirelessHotspotMode.WIFI_P2P -> WifiP2pGroupManager(appContext, ::debugLog,
                 preferredChannel = config.wifiP2pPreferredChannel)
-            WirelessHotspotMode.LOCAL_ONLY_HOTSPOT -> LocalOnlyHotspotManager(appContext, ::debugLog)
+            WirelessHotspotMode.LOCAL_ONLY_HOTSPOT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                LocalOnlyHotspotManager(appContext, ::debugLog)
+            } else {
+                // WifiManager.startLocalOnlyHotspot is API 26.
+                throw WirelessStartupException(WirelessStartupFailure.HOTSPOT_CONFIGURATION,
+                    "Android's local-only hotspot needs Android 8.0 or newer. " +
+                        "Choose Wi-Fi Direct, the car hotspot, or an existing Wi-Fi network.")
+            }
             WirelessHotspotMode.EXISTING_WIFI -> ExistingWifiManager(
                 appContext, config.existingWifiSsid, config.existingWifiPassphrase, ::debugLog,
                 onNetworkChanged = { if (!isStaleWirelessRun(generation)) restartWireless() },

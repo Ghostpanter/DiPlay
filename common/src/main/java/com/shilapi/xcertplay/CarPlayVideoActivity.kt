@@ -1,5 +1,8 @@
 package com.shilapi.xcertplay
 
+import com.shilapi.xcertplay.compat.ApiCompat
+import android.os.Build
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.app.Activity
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -316,8 +319,8 @@ class CarPlayVideoActivity : Activity() {
         .joinToString(" <- ") { "${it.javaClass.simpleName}(${it.message?.replace(Regex("\\w+://\\S+"), "<url>")})" }
 
     private fun playbackNetworkSummary(): String {
-        val manager = getSystemService(ConnectivityManager::class.java)
-        val network = manager?.activeNetwork
+        val manager = systemServiceCompat(ConnectivityManager::class.java)
+        val network = manager?.let(ApiCompat::activeNetwork)
         val capabilities = network?.let(manager::getNetworkCapabilities)
         if (network == null || capabilities == null) return "network=none"
         val transports = buildList {

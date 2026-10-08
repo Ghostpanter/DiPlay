@@ -1,5 +1,8 @@
 package com.shilapi.xcertplay.settings
 
+import com.shilapi.xcertplay.compat.setTrackTintCompat
+import com.shilapi.xcertplay.compat.setThumbTintCompat
+import com.shilapi.xcertplay.compat.setForegroundCompat
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -77,14 +80,14 @@ object SettingsWidgets {
             isEnabled = enabled
             if (theme.isOverlay) {
                 showText = false
-                thumbTintList = ColorStateList(
+                setThumbTintCompat(ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(theme.accent, theme.textSecondary),
-                )
-                trackTintList = ColorStateList(
+                ))
+                setTrackTintCompat(ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(theme.accentTrack, theme.trackOff),
-                )
+                ))
             } else {
                 minHeight = theme.dp(context, 56)
                 buttonTintList = ColorStateList.valueOf(theme.accent)
@@ -128,13 +131,13 @@ object SettingsWidgets {
             row.isFocusable = true
             row.background = android.graphics.drawable.RippleDrawable(
                 ColorStateList.valueOf(ROW_RIPPLE), null, android.graphics.drawable.ColorDrawable(Color.WHITE))
-            row.foreground = android.graphics.drawable.StateListDrawable().apply {
+            row.setForegroundCompat(android.graphics.drawable.StateListDrawable().apply {
                 addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply {
                     setColor(Color.TRANSPARENT)
                     cornerRadius = theme.dp(context, 12).toFloat()
                     setStroke(theme.dp(context, 3), theme.accent)
                 })
-            }
+            })
             row.setOnClickListener { if (switch.isEnabled) switch.toggle() }
             switch.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             row.accessibilityDelegate = object : View.AccessibilityDelegate() {

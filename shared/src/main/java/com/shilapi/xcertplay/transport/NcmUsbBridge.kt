@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.transport
 
+import com.shilapi.xcertplay.compat.LegacyUsbRead
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
@@ -220,8 +221,11 @@ class NcmUsbBridge internal constructor(
         return frame
     }
 
+    private val legacyReader by lazy { LegacyUsbRead(connection, inEndpoint) }
+
     private fun readChunk(timeoutMillis: Long): Int? {
         checkOpen()
+        if (!LegacyUsbRead.queuedRequestsAvailable) return readChunkLegacy(timeoutMillis)
         var acceptedFallback: UsbReadQueueResult? = null
         val request = try {
             // Publish and queue atomically with close(), so detach cannot miss a new request.
@@ -279,6 +283,22 @@ class NcmUsbBridge internal constructor(
             throw error
         } catch (error: RuntimeException) {
             throw failSession("NCM read failed", error)
+        }
+    }
+
+    /** API 22-25: synchronous bulk read into [readBuffer] (see [LegacyUsbRead]). */
+    private fun readChunkLegacy(timeoutMillis: Long): Int? {
+        val result = try {
+            legacyReader.read(readBuffer, timeoutMillis.coerceAtLeast(1))
+        } catch (error: RuntimeException) {
+            throw failSession("NCM read failed", error)
+        }
+        checkOpen()
+        return when (result) {
+            is LegacyUsbRead.Result.Data -> result.length
+            LegacyUsbRead.Result.Timeout -> null
+            is LegacyUsbRead.Result.Failed ->
+                throw failSession("NCM bulk read failed repeatedly (api=${Build.VERSION.SDK_INT} code=${result.code})")
         }
     }
 

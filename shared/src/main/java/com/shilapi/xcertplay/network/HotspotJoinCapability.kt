@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.network
 
+import android.os.Build
 import android.os.Binder
 import android.os.IBinder
 import android.os.IInterface
@@ -57,8 +58,10 @@ internal object HotspotJoinCapability {
                     if (transaction != code || !active.get()) return true
                     try {
                         data.enforceInterface(DESCRIPTOR)
-                        val capability = data.readTypedObject(creator) ?: return true
-                        data.enforceNoDataAvail()
+                        // Same wire format as Parcel.readTypedObject (API 23).
+                        val capability = (if (data.readInt() != 0) creator.createFromParcel(data) else null)
+                            ?: return true
+                        if (Build.VERSION.SDK_INT >= 33) data.enforceNoDataAvail()
                         val supported = capabilityType.getMethod("areFeaturesSupported", Long::class.javaPrimitiveType)
                             .invoke(capability, feature) == true
                         val channels = capabilityType.getMethod("getSupportedChannelList", Int::class.javaPrimitiveType)

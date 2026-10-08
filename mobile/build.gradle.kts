@@ -15,10 +15,10 @@ android {
 
     defaultConfig {
         applicationId = "com.shihab.diplay"
-        minSdk = 28
+        minSdk = 22
         targetSdk = 37
         versionCode = 33
-        versionName = "0.2.14"
+        versionName = "0.2.14-api22"
 
     }
 
@@ -52,6 +52,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // API 22-25: java.time / java.util.Base64 / Java 8 collection defaults.
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -59,6 +61,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(platform(libs.androidx.compose.bom))
     implementation(project(":common"))
     implementation(project(":shared"))

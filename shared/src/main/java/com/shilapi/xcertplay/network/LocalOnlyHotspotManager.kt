@@ -1,8 +1,9 @@
 package com.shilapi.xcertplay.network
 
+import android.annotation.SuppressLint
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.MacAddress
 import android.net.wifi.SoftApConfiguration
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
@@ -29,10 +30,11 @@ import java.util.concurrent.TimeUnit
  * the AP interface is usable. The reservation and multicast lock stay owned by this instance
  * until [close].
  */
+@RequiresApi(Build.VERSION_CODES.O) // WifiManager.startLocalOnlyHotspot; the controller gates API 22-25.
 class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (String) -> Unit = {}) : WirelessHotspotManager {
     private val connectivityManager =
-        context.applicationContext.getSystemService(ConnectivityManager::class.java)
-    private val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
+        context.applicationContext.systemServiceCompat(ConnectivityManager::class.java)
+    private val wifiManager = context.applicationContext.systemServiceCompat(WifiManager::class.java)
         ?: throw IllegalStateException("WifiManager is unavailable")
     private val stateLock = Object()
 
@@ -175,6 +177,8 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
      * for, or null when the platform got the plain Android-generated AP. The caller uses
      * the returned channel as the advertised fallback when no live radio reading exists.
      */
+    // Upstream: the custom-configuration branch is gated to API 33 or 36+ and goes through reflection.
+    @SuppressLint("NewApi")
     private fun requestHotspot(callback: WifiManager.LocalOnlyHotspotCallback): Int? {
         // Android 13's service accepts a custom LOHS configuration from target-33+ callers
         // with Nearby devices permission. BYD's Android 12 builds expose the same entry
@@ -443,9 +447,10 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         val ssid = validateSsid(configuration.SSID)
         val security = mapWifiConfigurationSecurity(configuration)
         val passphrase = validatePassphrase(security, unquote(configuration.preSharedKey))
-        val bssid = configuration.BSSID?.let {
+        // android.net.MacAddress is API 28; this path also runs on Android 8.x.
+        val bssidBytes = configuration.BSSID?.let {
             try {
-                MacAddress.fromString(it)
+                parseMacAddress(it)
             } catch (failure: IllegalArgumentException) {
                 throw IOException("LocalOnlyHotspot reported an invalid BSSID: $it", failure)
             }
@@ -457,8 +462,8 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
             passphrase = passphrase,
             security = security,
             channel = channel,
-            bssid = bssid?.toString(),
-            bssidBytes = bssid?.toByteArray(),
+            bssid = bssidBytes?.joinToString(":") { "%02x".format(it.toInt() and 0xff) },
+            bssidBytes = bssidBytes,
             bandLabel = readWifiConfigurationBandLabel(configuration, channel),
         )
     }
@@ -827,4 +832,13 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         const val NANOS_PER_MILLISECOND = 1_000_000L
         val INTERFACE_POLL_NANOS: Long = TimeUnit.MILLISECONDS.toNanos(100)
     }
+}
+
+/** Parses `aa:bb:cc:dd:ee:ff` like `MacAddress.fromString` (API 28); throws IllegalArgumentException. */
+internal fun parseMacAddress(text: String): ByteArray {
+    val parts = text.split(':')
+    require(parts.size == 6 && parts.all { part -> part.length in 1..2 && part.all { it in "0123456789abcdefABCDEF" } }) {
+        "Invalid MAC address: $text"
+    }
+    return ByteArray(6) { index -> parts[index].toInt(16).toByte() }
 }

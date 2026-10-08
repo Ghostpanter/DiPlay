@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.hud
 
+import com.shilapi.xcertplay.compat.ApiCompat
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -49,11 +50,11 @@ internal class BydStandaloneHudOutput private constructor(context: Context) {
             appendLine("standaloneHudAvailable=${available(context)} sdk=${Build.VERSION.SDK_INT}")
             appendLine("firmware=${Build.FINGERPRINT}")
             runCatching {
-                val info = context.packageManager.getPackageInfo(TARGET.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val info = context.packageManager.getPackageInfo(TARGET.packageName, ApiCompat.signingCertificateFlags)
                 val receiver = context.packageManager.getReceiverInfo(TARGET, 0)
-                appendLine("receiver=${TARGET.flattenToString()} version=${info.longVersionCode} system=${(info.applicationInfo?.flags?.and(ApplicationInfo.FLAG_SYSTEM) ?: 0) != 0}")
+                appendLine("receiver=${TARGET.flattenToString()} version=${ApiCompat.longVersionCode(info)} system=${(info.applicationInfo?.flags?.and(ApplicationInfo.FLAG_SYSTEM) ?: 0) != 0}")
                 appendLine("receiverEnabled=${receiver.enabled} exported=${receiver.exported} permission=${receiver.permission}")
-                info.signingInfo?.apkContentsSigners?.forEach { signer ->
+                ApiCompat.signatures(info)?.forEach { signer ->
                     appendLine("signerSha256=" + MessageDigest.getInstance("SHA-256").digest(signer.toByteArray())
                         .joinToString("") { "%02x".format(it.toInt() and 255) })
                 }

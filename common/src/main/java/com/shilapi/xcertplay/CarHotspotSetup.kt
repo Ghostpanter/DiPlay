@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay
 
+import com.shilapi.xcertplay.compat.ApiCompat
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.provider.Settings
@@ -21,8 +22,8 @@ internal object CarHotspotSetup {
         HOTSPOT("WRITE_SETTINGS"), BOOT_LAUNCH("SYSTEM_ALERT_WINDOW");
 
         fun granted(context: Context): Boolean = when (this) {
-            HOTSPOT -> Settings.System.canWrite(context)
-            BOOT_LAUNCH -> Settings.canDrawOverlays(context)
+            HOTSPOT -> ApiCompat.canWriteSystemSettings(context)
+            BOOT_LAUNCH -> ApiCompat.canDrawOverlays(context)
         }
     }
 

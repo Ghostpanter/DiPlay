@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.shilapi.xcertplay
 
+import com.shilapi.xcertplay.compat.ApiCompat
+import com.shilapi.xcertplay.compat.systemServiceCompat
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.LocaleManager
@@ -96,9 +98,9 @@ object AppLocale {
     @Suppress("DEPRECATION")
     fun enforce(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= 33) return false
-        val locale = locale(preference(context)) ?: Resources.getSystem().configuration.locales[0]
+        val locale = locale(preference(context)) ?: ApiCompat.primaryLocale(Resources.getSystem().configuration)
         val resources = context.resources
-        if (resources.configuration.locales[0] == locale) return false
+        if (ApiCompat.primaryLocale(resources.configuration) == locale) return false
         val configuration = Configuration(resources.configuration).apply {
             setLocale(locale)
             setLayoutDirection(locale)
