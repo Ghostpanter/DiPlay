@@ -120,7 +120,7 @@ object ApiCompat {
     /** `Configuration.getLocales()` is API 24; older releases expose a single locale. */
     @JvmStatic
     @Suppress("DEPRECATION")
-    fun primaryLocale(configuration: Configuration): Locale =
+    fun primaryLocale(configuration: Configuration): Locale? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) configuration.locales[0] else configuration.locale
 
     /** Copies the locale list (API 24+) or the single locale (older) from [source] to [target]. */

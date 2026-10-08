@@ -18,6 +18,9 @@ class AudioFocusCompat private constructor(
     private val legacyStream: Int,
     private val gain: Int,
 ) {
+    /** The listener the platform calls back (exposed for tests). */
+    val onFocusChange: AudioManager.OnAudioFocusChangeListener get() = listener
+
     fun request(manager: AudioManager): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Modern.request(manager, modern)

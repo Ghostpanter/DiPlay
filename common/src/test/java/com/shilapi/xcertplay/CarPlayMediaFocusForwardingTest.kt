@@ -1,6 +1,5 @@
 package com.shilapi.xcertplay
 
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Looper
 import android.view.Surface
@@ -146,7 +145,8 @@ class CarPlayMediaFocusForwardingTest {
         CarPlayMediaKeys.onMediaAudioChanged(true)
         shadowOf(Looper.getMainLooper()).idle()
         if (clearInitialGrant) clearInvocations(sink)
-        val request = ReflectionHelpers.getField<AudioFocusRequest>(CarPlayMediaKeys, "focusRequest")
-        return ReflectionHelpers.callInstanceMethod(request, "getOnAudioFocusChangeListener")
+        val request = ReflectionHelpers.getField<com.shilapi.xcertplay.compat.AudioFocusCompat>(
+            CarPlayMediaKeys, "focusRequest")
+        return request.onFocusChange
     }
 }
